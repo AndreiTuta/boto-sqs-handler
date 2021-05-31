@@ -10,28 +10,7 @@ def make_sendinblue_message(email: str, name:str) -> None:
 
     url = "https://api.sendinblue.com/v3/smtp/email"
 
-    payload = {
-        "sender": {
-            "name": "Gate",
-            "email": "noreply@atdev.com"
-        },
-        "to": [{
-            "email": email,
-            "name": name
-        }
-        ],
-        "replyTo": {
-            "email": "noreply@atdev.com",
-            "name": "no-reply"
-        },
-        "htmlContent": "Hello and welcome to Gate",
-        "subject": "Subject"
-    }
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "api-key": "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"
-    }
+    payload = "request"
 
     response = requests.request("POST", url, json=payload, headers=headers)
 
