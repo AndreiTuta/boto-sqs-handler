@@ -1,15 +1,50 @@
 # will extend https://github.com/Pastromhaug/code_samples/blob/master/sqs_consumer/sqs_consumer.py
 import time
+import requests
+import json
 from signal import SIGINT, SIGTERM, signal
 
 from datadog import statsd
 
+def make_sendinblue_message(email: str, name:str) -> None:
+
+    url = "https://api.sendinblue.com/v3/smtp/email"
+
+    payload = {
+        "sender": {
+            "name": "Gate",
+            "email": "noreply@atdev.com"
+        },
+        "to": [{
+            "email": email,
+            "name": name
+        }
+        ],
+        "replyTo": {
+            "email": "noreply@atdev.com",
+            "name": "no-reply"
+        },
+        "htmlContent": "Hello and welcome to Gate",
+        "subject": "Subject"
+    }
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "api-key": "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"
+    }
+
+    response = requests.request("POST", url, json=payload, headers=headers)
+
+    print(response.text)
+    pass
+
 
 def process_message(sqs_message: str) -> None:
     print(f"Processing message: {sqs_message}")
+    message = json.loads(sqs_message)
+    make_sendinblue_message(message["email"],message["name"])
     # process your sqs message here
     pass
-
 
 class Handler:
     def __init__(self):
@@ -20,7 +55,6 @@ class Handler:
     def _signal_handler(self, signal, frame):
         print(f"Handling signal {signal}, exiting gracefully")
         self.received_signal = True
-
 
 def wait(seconds: int):
     def decorator(fun):
