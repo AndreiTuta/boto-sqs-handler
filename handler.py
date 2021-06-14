@@ -17,7 +17,7 @@ class SendinblueHandler:
         payload = {
             "sender": {"name": "Gate", "email": "noreply@atdev.com"},
             "to": [{"email": email, "name": name}],
-            "replyTo": {"email": "noreply@atdev.com", "name": "no-reply"},
+            "replyTo": self.reply,
             "htmlContent": email_template,
             "subject": email_subject,
         }
@@ -55,6 +55,7 @@ class SqsHandler(SendinblueHandler):
             "Content-Type": "application/json",
             "api-key": self.key,
         }
+        self.reply = {"email": "noreply", "name": "no-reply"}
 
     def _signal_handler(self, signal, frame):
         print(f"Handling signal {signal}, exiting gracefully")
