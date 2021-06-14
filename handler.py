@@ -61,6 +61,7 @@ class SqsHandler(SendinblueHandler):
         print(f"Handling signal {signal}, exiting gracefully")
         self.received_signal = True
 
+    # {"name": name to show in email,"email": address to send email to , "isContact": boolean for only creating a contact via sendinblue}
     def process_message(
         self, sqs_message: str, email_template: str, email_subject: str
     ) -> None:
@@ -68,10 +69,14 @@ class SqsHandler(SendinblueHandler):
             f"Processing message: {sqs_message} with template {email_subject}: {email_template}"
         )
         message = json.loads(sqs_message)
-        self.make_sendinblue_message(
-            message["email"], message["name"], email_template, email_subject
-        )
-        # process your sqs message here
+        if message["isContact"]:
+            self.make_sendinblue_message(
+                message["email"], message["name"], email_template, email_subject
+            )
+        else:
+            self.make_sendinblue_contact(
+                message["email"], message["name"]
+            )
         pass
 
 
@@ -93,7 +98,7 @@ def wait(seconds: int):
 
 @wait(seconds=60)
 def send_queue_metrics(sqs_queue) -> None:
-    print("Sending queue metrics")
+    print("Reading queue metrics")
     statsd.gauge(
         "sqs.queue.message_count",
         queue_length(sqs_queue),
