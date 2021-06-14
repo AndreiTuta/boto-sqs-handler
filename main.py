@@ -14,8 +14,6 @@ AWSSEC = config["aws"]["AWSSEC"]
 REGION = config["aws"]["REGION"]
 SQS_QUEUE_NAME = config["aws"]["SQS_QUEUE_NAME"]
 SQS_DEAD_LETTER_QUEUE_NAME = config["aws"]["SQS_DEAD_LETTER_QUEUE_NAME"]
-EMAIL_TEMPLATE = config["email"]["HTML"]
-EMAIL_SUBJECT = config["email"]["SUBJECT"]
 SENDIN_BLUE_KEY = config["email"]["APIKEY"]
 
 sqs = boto3.resource("sqs", aws_access_key_id = AWSID,
@@ -32,7 +30,7 @@ if __name__ == "__main__":
         messages = queue.receive_messages(MaxNumberOfMessages=10, WaitTimeSeconds=1,)
         for message in messages:
             try:
-                sqs_handler.process_message(message.body, EMAIL_TEMPLATE, EMAIL_SUBJECT)
+                sqs_handler.process_message(message.body)
             except Exception as e:
                 print(f"exception while processing message: {repr(e)}")
                 continue

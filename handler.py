@@ -9,7 +9,7 @@ from datadog import statsd
 
 class SendinblueHandler:
     def make_sendinblue_message(
-        self, email: str, name: str, email_template: str, email_subject: str
+        self, email: str, name: str, email_subject: str
     ) -> None:
 
         url = "https://api.sendinblue.com/v3/smtp/email"
@@ -18,8 +18,8 @@ class SendinblueHandler:
             "sender": {"name": "Gate", "email": "noreply@atdev.com"},
             "to": [{"email": email, "name": name}],
             "replyTo": self.reply,
-            "htmlContent": email_template,
             "subject": email_subject,
+            "templateId" : 1
         }
 
         response = requests.request("POST", url, json=payload, headers=self.headers)
@@ -61,19 +61,22 @@ class SqsHandler(SendinblueHandler):
         print(f"Handling signal {signal}, exiting gracefully")
         self.received_signal = True
 
-    # {"name": name to show in email,"email": address to send email to , "isContact": boolean for only creating a contact via sendinblue}
+    # {"name": name to show in email,"email": address to send email to , "subject": text to show as subject of the email,"isContact": boolean for only creating a contact via sendinblue}
     def process_message(
-        self, sqs_message: str, email_template: str, email_subject: str
+        self, sqs_message: str,
     ) -> None:
-        print(
-            f"Processing message: {sqs_message} with template {email_subject}: {email_template}"
-        )
         message = json.loads(sqs_message)
-        if message["isContact"]:
-            self.make_sendinblue_message(
-                message["email"], message["name"], email_template, email_subject
+        if message["isContact"] == 'False':
+            print(
+                f"Processing message: {sqs_message} as an email"
             )
-        else:
+            self.make_sendinblue_message(
+                message["email"], message["name"], message["subject"]
+            )
+        else:    
+            print(
+                f"Processing message: {sqs_message} as a contact"
+            )
             self.make_sendinblue_contact(
                 message["email"], message["name"]
             )
