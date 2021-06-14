@@ -6,20 +6,11 @@ from signal import SIGINT, SIGTERM, signal
 
 from datadog import statsd
 
-class Handler:
-    def __init__(self, key):
-        self.received_signal = False
-        signal(SIGINT, self._signal_handler)
-        signal(SIGTERM, self._signal_handler)
-        self.key = key
 
-    def _signal_handler(self, signal, frame):
-        print(f"Handling signal {signal}, exiting gracefully")
-        self.received_signal = True
-
-    def make_sendinblue_message(self,
-    email: str, name: str, email_template: str, email_subject: str
-) -> None:
+class SendinblueHandler:
+    def make_sendinblue_message(
+        self, email: str, name: str, email_template: str, email_subject: str
+    ) -> None:
 
         url = "https://api.sendinblue.com/v3/smtp/email"
 
@@ -30,25 +21,57 @@ class Handler:
             "htmlContent": email_template,
             "subject": email_subject,
         }
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "api-key": self.key,
+
+        response = requests.request("POST", url, json=payload, headers=self.headers)
+
+        print(response.text)
+        self.make_sendinblue_contact(email, name)
+        pass
+
+    def make_sendinblue_contact(self, email: str, name: str):
+        url = "https://api.sendinblue.com/v3/contacts"
+
+        payload = {
+            "attributes": {"FIRSTNAME": name},
+            "listIds": [3],
+            "updateEnabled": False,
+            "email": email,
         }
 
-        response = requests.request("POST", url, json=payload, headers=headers)
+        response = requests.request("POST", url, json=payload, headers=self.headers)
 
         print(response.text)
         pass
 
 
-    def process_message(self, sqs_message: str, email_template: str, email_subject: str) -> None:
-        print(f"Processing message: {sqs_message} with template {email_subject}: {email_template}")
+class SqsHandler(SendinblueHandler):
+    def __init__(self, key):
+        self.received_signal = False
+        signal(SIGINT, self._signal_handler)
+        signal(SIGTERM, self._signal_handler)
+        self.key = key
+        self.headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "api-key": self.key,
+        }
+
+    def _signal_handler(self, signal, frame):
+        print(f"Handling signal {signal}, exiting gracefully")
+        self.received_signal = True
+
+    def process_message(
+        self, sqs_message: str, email_template: str, email_subject: str
+    ) -> None:
+        print(
+            f"Processing message: {sqs_message} with template {email_subject}: {email_template}"
+        )
         message = json.loads(sqs_message)
-        self.make_sendinblue_message(message["email"], message["name"], email_template, email_subject)
+        self.make_sendinblue_message(
+            message["email"], message["name"], email_template, email_subject
+        )
         # process your sqs message here
         pass
-
 
 
 def wait(seconds: int):
