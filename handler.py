@@ -28,7 +28,7 @@ class SendinblueHandler:
         self.make_sendinblue_contact(email, name)
         pass
 
-    def make_sendinblue_contact(self, email: str, name: str):
+    def make_sendinblue_contact(self, email: str, name: str) -> None:
         url = "https://api.sendinblue.com/v3/contacts"
 
         payload = {
@@ -55,7 +55,7 @@ class SqsHandler(SendinblueHandler):
             "Content-Type": "application/json",
             "api-key": self.key,
         }
-        self.reply = {"email": "noreply", "name": "no-reply"}
+        self.reply = {"email": "noreply@atdev.com", "name": "no-reply"}
 
     def _signal_handler(self, signal, frame):
         print(f"Handling signal {signal}, exiting gracefully")
