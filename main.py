@@ -1,37 +1,96 @@
-import boto3
-import configparser
-
-from handler import SqsHandler, send_queue_metrics
-
+import json
+import requests
+import urllib
 
 
-config = configparser.ConfigParser()
-config.read('config.ini')
+class SendinblueHandler:
+    def __init__(self, key):
+        self.headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "api-key": key,
+        }
 
-print(config.sections())
-AWSID = config["aws"]["AWSID"]
-AWSSEC = config["aws"]["AWSSEC"]
-REGION = config["aws"]["REGION"]
-SQS_QUEUE_NAME = config["aws"]["SQS_QUEUE_NAME"]
-SQS_DEAD_LETTER_QUEUE_NAME = config["aws"]["SQS_DEAD_LETTER_QUEUE_NAME"]
-SENDIN_BLUE_KEY = config["email"]["APIKEY"]
+    def make_sendinblue_message(
+            self, email: str, name: str, event: int) -> bool:
+        url = "https://api.sendinblue.com/v3/smtp/email"
 
-sqs = boto3.resource("sqs", aws_access_key_id = AWSID,
-    aws_secret_access_key = AWSSEC,
-    region_name = REGION)
-queue = sqs.get_queue_by_name(QueueName=SQS_QUEUE_NAME)
-dlq = sqs.get_queue_by_name(QueueName=SQS_DEAD_LETTER_QUEUE_NAME)
+        payload = {
+            "to": [{"email": email, "name": name}], "replyTo": {"email": "no-reply@welcometogate.com"},
+            # use the templateId for event
+            "templateId": event
+        }
 
-if __name__ == "__main__":
-    sqs_handler = SqsHandler(SENDIN_BLUE_KEY)
-    while not sqs_handler.received_signal:
-        send_queue_metrics(queue)
-        send_queue_metrics(dlq)
-        messages = queue.receive_messages(MaxNumberOfMessages=10, WaitTimeSeconds=1,)
-        for message in messages:
-            try:
-                sqs_handler.process_message(message.body)
-            except Exception as e:
-                print(f"exception while processing message: {repr(e)}")
-                continue
-            message.delete()
+        response = requests.request(
+            "POST", url, json=payload, headers=self.headers)
+
+        self.check_create_sendinblue_contact(email, name)
+        print(response.text)
+        return response.status_code == 200
+
+    def check_sendinblue_contact(self, email: str) -> bool:
+        url = "https://api.sendinblue.com/v3/contacts/" + email
+        response = requests.request("GET", url, headers=self.headers)
+        print(response.text)
+        return response.status_code == 404
+
+    def check_create_sendinblue_contact(self, email: str, name: str) -> bool:
+        if(self.check_sendinblue_contact(urllib.parse.quote(email))):
+            self.make_sendinblue_contact(email, name)
+        else:
+            print(
+                f"Contact with email {email} already exists. Skipping creating a contact")
+
+    def make_sendinblue_contact(self, email: str, name: str) -> bool:
+        url = "https://api.sendinblue.com/v3/contacts"
+
+        payload = {
+            "attributes": {"FIRSTNAME": name},
+            "listIds": [3],
+            "updateEnabled": False,
+            "email": email,
+        }
+
+        response = requests.request(
+            "POST", url, json=payload, headers=self.headers)
+        print(response.text)
+        return response.status_code == 200
+
+    # {"name": name to show in email,"email": address to send email to , "subject": text to show as subject of the email,"isContact": boolean for only creating a contact via sendinblue}
+    def process_message(
+        self, sqs_message: dict,
+    ) -> None:
+        if sqs_message["isContact"] == False:
+            print(
+                f"Processing message as an email"
+            )
+            self.make_sendinblue_message(
+                sqs_message["email"], sqs_message["name"], sqs_message["event"]
+            )
+        else:
+            print(
+                f"Processing message as a contact"
+            )
+            self.check_create_sendinblue_contact(
+                sqs_message["email"], sqs_message["name"]
+            )
+
+
+class Message():
+    def __init__(self, id, body):
+        self.id = id
+        self.body = body
+        print(f"Processing new sqs message with id: {id} and body: {body}")
+
+
+def lambda_handler(event, context):
+    response = event['Records']
+    sqs_handler = SendinblueHandler(
+        "API-key")
+    for entry in response:
+        m = Message(entry['messageId'], entry['body'])
+        try:
+            success = sqs_handler.process_message(m.body)
+        except Exception as e:
+            print(f"exception while processing message: {repr(e)}")
+            continue
