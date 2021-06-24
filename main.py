@@ -16,9 +16,9 @@ class SendinblueHandler:
 
     def make_sendinblue_message(
             self, email: str, name: str, event: int) -> bool:
-
+        print(f"Processing new Sendinblue email for {email} and event {event}")
         payload = {
-            "to": [{"email": email, "name": name}], "replyTo": {"email": "no-reply@welcometogate.com"},
+            "to": [{"email": email, "name": name}], 
             # use the templateId for event
             "templateId": event
         }
@@ -31,6 +31,8 @@ class SendinblueHandler:
         return response.status_code == 200
 
     def check_sendinblue_contact(self, email: str) -> bool:
+        print(
+            f"Searching for Sendinblue for Sendinblue contact with email {email}")
         response = requests.request(
             "GET", self.contact_url + email, headers=self.headers)
         print(response.text)
@@ -84,7 +86,7 @@ def lambda_handler(event, context):
         "API-key")
     for entry in response:
         print(
-            f"Processing SQS message with id: {entry['messageId']} and body: entry['body'])")
+            f"Processing SQS message with id: {entry['messageId']} and body: {entry['body']})")
         try:
             success = sqs_handler.process_message(entry['body'])
         except Exception as e:
