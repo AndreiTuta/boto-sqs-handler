@@ -25,6 +25,7 @@ class SendinblueHandler:
         response = requests.request(
             "POST", self.email_url, json=payload, headers=self.headers)
         self.check_create_sendinblue_contact(email, name, gate_guid)
+        print(response.json())
         return response.status_code == 200
 
     def update_sendinblue_contact(self, email:str, gate_guid:str):
@@ -38,7 +39,7 @@ class SendinblueHandler:
         return response.status_code == 404
 
     def check_create_sendinblue_contact(self, email: str, name: str, gate_guid:str) -> bool:
-        if(self.check_sendinblue_contact(urllib.parse.quote(email))):
+        if(self.check_sendinblue_contact(urllib.parse.quote(email.encode('utf-8')))):
             print(
                 f"No contact found with email address {email}. Creating a new Sendinblue contact for {name}")
             self.make_sendinblue_contact(email, name, gate_guid)
@@ -58,16 +59,18 @@ class SendinblueHandler:
             "POST", self.contact_url, json=payload, headers=self.headers)
         return response.status_code == 200
 
-    # {"name": name to show in email,"email": address to send email to , "subject": text to show as subject of the email,"isContact": boolean for only creating a contact via sendinblue, "event": template Id to be used when sending an email. }
     def process_message(
         self, sqs_message: dict,
     ) -> None:
+        if isinstance(sqs_message, str):
+            print("string found instead of dict. converting")
+            sqs_message = json.loads(sqs_message)
         guid = 'default-guid'
         try:
             guid = sqs_message["guid"]
         except KeyError:
             print(f"No guid found for user with email {sqs_message['email']}")
-        if sqs_message["isContact"] == False:
+        if sqs_message["isContact"] == "False":
             print(
                 f"Processing message as an email"
             )
